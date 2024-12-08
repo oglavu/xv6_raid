@@ -1,4 +1,4 @@
-#include "kernel/syscall.h"
+#include "kernel/raid/raid_types.h"
 struct stat;
 
 // system calls

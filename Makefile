@@ -1,5 +1,6 @@
 K=kernel
 U=user
+R=kernel/raid
 
 OBJS = \
   $K/entry.o \
@@ -29,7 +30,12 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
-  $K/raid.o
+  $R/raid.o \
+  $R/raid0.o \
+  $R/raid1.o \
+  $R/raid01.o \
+  $R/raid4.o \
+  $R/raid5.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -157,11 +163,12 @@ fs.img: mkfs/mkfs README $(UPROGS)
 -include kernel/*.d user/*.d
 
 clean: 
-	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
+	rm -rf *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*.d */*.asm */*.sym \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
 	mkfs/mkfs .gdbinit \
         $U/usys.S \
+        $R/*.o $R/*.d \
 	$(UPROGS) \
 	$(RAID_DISKS)
 
