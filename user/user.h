@@ -23,6 +23,15 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
+enum RAID_TYPE {RAID0 = 1, RAID1 = 2, RAID0_1 = 3, RAID4 = 4, RAID5 = 5};
+int init_raid(enum RAID_TYPE);
+int read_raid(int blkn, uchar* data);
+int write_raid(int blkn, uchar* data);
+int disk_fail_raid(int diskn);
+int disk_repaired_raid(int diskn);
+int info_raid(uint *blkn, uint *blks, uint *diskn);
+int destroy_raid(void);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
