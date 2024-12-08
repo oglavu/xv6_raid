@@ -1,3 +1,4 @@
+#include "kernel/syscall.h"
 struct stat;
 
 // system calls
@@ -23,7 +24,13 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
-enum RAID_TYPE {RAID0 = 1, RAID1 = 2, RAID0_1 = 3, RAID4 = 4, RAID5 = 5};
+enum RAID_TYPE {
+  RAID0 = ENUM_raid_0,
+  RAID1 = ENUM_raid_1,
+  RAID0_1 = ENUM_raid_01,
+  RAID_4 = ENUM_raid_4,
+  RAID_5 = ENUM_raid_5
+};
 int init_raid(enum RAID_TYPE);
 int read_raid(int blkn, uchar* data);
 int write_raid(int blkn, uchar* data);
