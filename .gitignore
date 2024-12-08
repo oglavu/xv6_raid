@@ -1,10 +1,14 @@
 
 *.o
 *.d
-*.S
+*.s
 *.img
 *.sym
+*.asm
+*.out
 _*
+*key*
 
 .idea/*
 
+mkfs/mkfs
