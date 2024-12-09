@@ -2,7 +2,8 @@
 // Created by os on 12/8/24.
 //
 
-#include "kernel/types.h"
+#include "raid.h"
+
 
 uint64
 raid_init_1() {

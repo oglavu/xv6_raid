@@ -73,7 +73,8 @@ static int current_raid;
 
 uint64
 sys_init_raid(void) {
-  int type = 0;
+  int type;
+  argint(0, &type);
   current_raid = type;
   return raid_inits[type]();
 }
@@ -82,6 +83,10 @@ uint64
 sys_read_raid(void){
   int blkn = 0;
   uchar* data = 0;
+
+  argint(0, &blkn);
+  argaddr(1, (uint64*)&data);
+
   return raid_reads[current_raid](blkn, data);
 }
 
@@ -94,19 +99,26 @@ sys_write_raid(void){
 
 uint64
 sys_disk_fail_raid(void){
-  int blkn = 0;
+  int blkn;
+  argint(0, &blkn);
   return raid_fails[current_raid](blkn);
 }
 
 uint64
 sys_disk_repaired_raid(void){
   int blkn = 0;
+  argint(0, &blkn);
   return raid_repairs[current_raid](blkn);
 }
 
 uint64
 sys_info_raid(void){
-  uint64 blkn = 0, blks = 0, diskn = 0;
+  uint64 blkn, blks, diskn;
+
+  argaddr(0, &blkn);
+  argaddr(1, &blks);
+  argaddr(2, &diskn);
+
   return raid_infos[current_raid]((uint*)blkn, (uint*)blks, (uint*)diskn);
 }
 
