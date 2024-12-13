@@ -4,12 +4,9 @@
 
 #include "../types.h"
 
-
-extern void argint(int, int*);
-extern int argstr(int, char*, int);
-extern void argaddr(int, uint64 *);
-extern int fetchaddr(uint64, uint64*);
-extern void printf(char *, ...);
+// ls.c
+void load_raid(void);
+void store_raid(void);
 
 
 

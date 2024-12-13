@@ -10,5 +10,9 @@ _*
 *key*
 
 .idea/*
+.vscode/*
 
 mkfs/mkfs
+kernel/kernel
+user/initcode
+user/usys.S

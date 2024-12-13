@@ -30,6 +30,7 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
+  $R/ls.o \
   $R/raid.o \
   $R/raid0.o \
   $R/raid1.o \
@@ -66,6 +67,7 @@ DISK_SIZE := 128M
 endif
 
 RAID_DISKS = $(shell count=`expr $(DISKS) - 1`; for i in `seq 0 $$count`; do echo -n "disk_$$i.img "; done)
+DISK_BSIZE = $(shell echo $(DISK_SIZE) | sed 's/M//' | awk '{print $$1 * 1024 * 1024}')
 
 $(RAID_DISKS):
 	qemu-img create $@ $(DISK_SIZE)
@@ -79,7 +81,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
 CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2 -DDISKS=$(DISKS) -DMEM=$(MEM)
-CFLAGS += -MD
+CFLAGS += -DDISK_SIZE=$(DISK_BSIZE) -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -I.

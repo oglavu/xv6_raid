@@ -198,3 +198,5 @@ void            read_block(int diskn, int blockno, uchar* data);
 #define VIRTIO0_ID 0
 #define VIRTIO_RAID_DISK_START (1)
 #define VIRTIO_RAID_DISK_END (DISKS)
+// disk_size
+#define VIRTIO_RAID_DISK_SIZE (DISK_SIZE)
