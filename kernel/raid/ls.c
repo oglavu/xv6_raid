@@ -43,7 +43,7 @@ int load_raid(void) {
   int first = 0;
   struct RaidHeader model;
   uchar* buf = (uchar*) kalloc();
-  for (int ix=RAID_DISKS_START; ix < RAID_DISKS_END; ix++) {
+  for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
     read_block(ix, 0, buf);
 
     assign(&raidHeaders[ix], (struct RaidHeader*)buf);
@@ -61,11 +61,11 @@ int load_raid(void) {
       assign(&model, &raidHeaders[ix]);
       continue;
     }
-    // 0 -> unanimous
-    printf("%d \n", validate(&model, &raidHeaders[ix]));
+    // 0 -> not unanimous
     if (validate(&model, &raidHeaders[ix]) == 0) {
       printf("Raid disks NOT unanimous | Waiting raid initialisation\n");
-      break;
+      kfree(buf);
+      return -2;
     }
   }
   kfree(buf);
@@ -75,7 +75,7 @@ int load_raid(void) {
 
 int store_raid(void) {
 
-  for (int ix=RAID_DISKS_START; ix<RAID_DISKS_END; ix++) {
+  for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
     printf("Storing Raid | %d\n", ix);
     //printHeader(&raidHeaders[ix]);
     write_block(ix, 0, (uchar*)&raidHeaders[ix]);

@@ -5,7 +5,7 @@
 #include "../types.h"
 
 #define RAID_MAGIC 0x21022020
-#define RAID_DISKS (DISKS - 1)
+#define RAID_DISKS (DISKS)
 #define MAX_BLOCKS (RAID_DISKS * DISK_SIZE / BSIZE)
 #define RAID_DISKS_START (1)
 #define RAID_DISKS_END (DISKS)

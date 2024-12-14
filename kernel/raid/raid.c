@@ -75,7 +75,7 @@ static uint64 (*raid_destroys[])() = {
 
 int current_raid = -1;
 uint8 faultyDisks = 0;
-struct RaidHeader raidHeaders[RAID_DISKS_END + RAID_DISKS_START];
+struct RaidHeader raidHeaders[RAID_DISKS_START + RAID_DISKS_END];
 
 uint64
 sys_init_raid(void) {

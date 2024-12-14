@@ -15,7 +15,7 @@
 
 uint64
 raid_init_0() {
-  for (int ix=RAID_DISKS_START; ix < RAID_DISKS_END; ix++) {
+  for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
     raidHeaders[ix].magic = RAID_MAGIC;
     raidHeaders[ix].raidType = ENUM_raid_0;
     raidHeaders[ix].raidRole = DATA;
@@ -30,7 +30,7 @@ uint64
 raid_read_0(int blkn, uchar* data) {
 
   // block out of bound
-  if (blkn < 0 || blkn > MAX_BLOCKS) 
+  if (blkn < 0 || blkn >= MAX_BLOCKS) 
     return -1;
 
   // blkn is logical block
@@ -39,8 +39,8 @@ raid_read_0(int blkn, uchar* data) {
   struct proc* p = myproc();
   uchar* paData = (uchar*) (walkaddr(p->pagetable, (uint64)data)  + (uint64)data%PGSIZE);
 
-  int diskn = blkn % RAID_DISKS + 1;
-  int blkp = blkn / RAID_DISKS + 1;
+  int diskn = blkn % RAID_DISKS + RAID_DISKS_START;
+  int blkp = blkn / RAID_DISKS + HEADER_OFFSET;
 
   // disk faulty
   uint8 mask = 1 << diskn;
@@ -56,7 +56,7 @@ uint64
 raid_write_0(int blkn, uchar* data) {
 
   // block out of bound
-  if (blkn < 0 || blkn > MAX_BLOCKS) 
+  if (blkn < 0 || blkn >= MAX_BLOCKS) 
     return -1;
 
   // blkn is logical block
@@ -66,8 +66,8 @@ raid_write_0(int blkn, uchar* data) {
   struct proc* p = myproc();
   uchar* paData = (uchar*) (walkaddr(p->pagetable, (uint64)data)  + (uint64)data%PGSIZE);
 
-  int diskn = blkn % RAID_DISKS + 1;
-  int blkp = blkn / RAID_DISKS + 1;
+  int diskn = blkn % RAID_DISKS + RAID_DISKS_START;
+  int blkp = blkn / RAID_DISKS + HEADER_OFFSET;
 
   // disk faulty
   uint8 mask = 1 << diskn;
@@ -99,7 +99,7 @@ raid_info_0(uint64 blkn, uint64 blks, uint64 diskn) {
   uint* pBlks = (uint*) (walkaddr(p->pagetable, blks)  + blks%PGSIZE);
   uint* pDisk = (uint*) (walkaddr(p->pagetable, diskn) + diskn%PGSIZE);
 
-  *pBlkn = RAID_DISKS * (DISK_SIZE / BSIZE -1);
+  *pBlkn = MAX_BLOCKS - RAID_DISKS;
   *pBlks = BSIZE;
   *pDisk = RAID_DISKS;
 
