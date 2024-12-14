@@ -8,7 +8,15 @@ int
 main(int argc, char *argv[])
 {
   int type = atoi(argv[1]);
-  init_raid(type + 1);
+  int n = argc - 2;
+  int arr[8];
+  for (int ix=2; ix < argc; ix++) {
+    arr[ix-2] = atoi(argv[ix]);
+  }
+  if (init_raid(type+1) < 0) {
+    printf("Initialisation unsuccessful\n");
+    return 0;
+  }
 
   uint disk_num = 2, block_num = 3, block_size =4;
   info_raid(&block_num, &block_size, &disk_num);
@@ -21,21 +29,23 @@ main(int argc, char *argv[])
   for (uint i = 0; i < blocks; i++) {
     for (uint j = 0; j < block_size; j++) {
       blk[j] = j + i;
-      //printf("%d ", blk[j]);
     }
-    //printf("Writing to block %d\n", i);
     write_raid(i, blk);
   }
   printf("Writing finished\n");
   check_data(blocks, blk, block_size);
   printf("Content is fine\n");
 
-  disk_fail_raid(1);
-
+  for (int i=0; i<n; i++) {
+    disk_fail_raid(arr[i]);
+  }
+  
   check_data(blocks, blk, block_size);
   printf("Content is checked\n");
 
-  disk_repaired_raid(1);
+  for (int i=0; i<n; i++) {
+    disk_repaired_raid(arr[i]);
+  }
 
   check_data(blocks, blk, block_size);
   printf("Content is checked\n");
@@ -50,7 +60,7 @@ void check_data(uint blocks, uchar *blk, uint block_size)
   for (uint i = 0; i < blocks; i++)
   {
     if (read_raid(i, blk) != 0) {
-      printf("Disk dead\n");
+      printf("Disk dead | Block: %d\n", i);
       continue;
     }
     for (uint j = 0; j < block_size; j++)

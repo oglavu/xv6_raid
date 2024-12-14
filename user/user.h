@@ -28,8 +28,8 @@ enum RAID_TYPE {
   RAID0 = ENUM_raid_0,
   RAID1 = ENUM_raid_1,
   RAID0_1 = ENUM_raid_01,
-  RAID_4 = ENUM_raid_4,
-  RAID_5 = ENUM_raid_5
+  RAID4 = ENUM_raid_4,
+  RAID5 = ENUM_raid_5
 };
 int init_raid(enum RAID_TYPE);
 int read_raid(int blkn, uchar* data);

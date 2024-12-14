@@ -10,11 +10,11 @@ extern void* kalloc();
 extern void kfree(void*);
 
 static int validate(struct RaidHeader* model, struct RaidHeader* comparator) {
-  return ( (model->magic == comparator->magic) &&
+  return ( (comparator->faulty & (1 << comparator->diskIx)) ||
+      ((model->magic == comparator->magic) &&
       (model->raidType == comparator->raidType) &&
-      (model->raidRole == comparator->raidRole) &&
       (model->diskNo   == comparator->diskNo) &&
-      (model->faulty   == comparator->faulty) );
+      (model->faulty   == comparator->faulty)) );
 }
 
 static void assign(struct RaidHeader* model, struct RaidHeader* comparator) {
@@ -41,6 +41,7 @@ static void assign(struct RaidHeader* model, struct RaidHeader* comparator) {
 int load_raid(int* type, uint8* faulty) {
 
   int first = 0;
+  uint8 loaded_faulty = 1;
   struct RaidHeader model;
   uchar* buf = (uchar*) kalloc();
   for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
@@ -49,6 +50,12 @@ int load_raid(int* type, uint8* faulty) {
     assign(&raidHeaders[ix], (struct RaidHeader*)buf);
     printf("Loading Raid | %d\n", ix);
     //printHeader(&raidHeaders[ix]);
+
+    if (raidHeaders[ix].faulty & (1 << raidHeaders[ix].diskIx)) {
+      // disk is itself faulty thus cant manage faulty
+    } else {
+      loaded_faulty = raidHeaders[ix].faulty;
+    }
     
     if (first == 0) {
       // check magic number
@@ -71,7 +78,7 @@ int load_raid(int* type, uint8* faulty) {
   kfree(buf);
   printf("Raid disks unanimous | Raid %d already initialised\n", model.raidType-1);
   *type = model.raidType;
-  *faulty = model.faulty;
+  *faulty = (loaded_faulty & ~1);
   return 0;
 }
 

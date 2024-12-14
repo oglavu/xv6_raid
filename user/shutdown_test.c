@@ -8,6 +8,12 @@ int
 main(int argc, char *argv[])
 {
 
+  int n = argc - 1;
+  int arr[8];
+  for (int ix=1; ix < argc; ix++) {
+    arr[ix-1] = atoi(argv[ix]);
+  }
+
   uint disk_num = 2, block_num = 3, block_size =4;
   info_raid(&block_num, &block_size, &disk_num);
 
@@ -25,12 +31,16 @@ main(int argc, char *argv[])
   check_data(blocks, blk, block_size);
   printf("Content is fine\n");
 
-  disk_fail_raid(1);
+  for (int i=0; i<n; i++) {
+    disk_fail_raid(arr[i]);
+  }
 
   check_data(blocks, blk, block_size);
   printf("Content is checked\n");
 
-  disk_repaired_raid(1);
+  for (int i=0; i<n; i++) {
+    disk_repaired_raid(arr[i]);
+  }
 
   check_data(blocks, blk, block_size);
   printf("Content is checked\n");
@@ -42,17 +52,12 @@ main(int argc, char *argv[])
 
 void check_data(uint blocks, uchar *blk, uint block_size)
 {
-  int dead = 0;
   for (uint i = 0; i < blocks; i++)
   {
     if (read_raid(i, blk) != 0) {
-      if (dead == 0) {
-        printf("Disk dead\n"); 
-        dead = 1;
-      }
+      printf("Disk dead | Block: %d\n", i);
       continue;
     }
-    dead = 0;
     for (uint j = 0; j < block_size; j++)
     {
       if ((uchar)(j + i) != blk[j])
