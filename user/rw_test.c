@@ -7,8 +7,8 @@ void check_data(uint blocks, uchar *blk, uint block_size);
 int
 main(int argc, char *argv[])
 {
-  
-  init_raid(RAID0);
+  int type = atoi(argv[1]);
+  init_raid(type + 1);
 
   uint disk_num = 2, block_num = 3, block_size =4;
   info_raid(&block_num, &block_size, &disk_num);
@@ -47,17 +47,12 @@ main(int argc, char *argv[])
 
 void check_data(uint blocks, uchar *blk, uint block_size)
 {
-  int dead = 0;
   for (uint i = 0; i < blocks; i++)
   {
     if (read_raid(i, blk) != 0) {
-      if (dead == 0) {
-        printf("Disk dead\n"); 
-        dead = 1;
-      }
+      printf("Disk dead\n");
       continue;
     }
-    dead = 0;
     for (uint j = 0; j < block_size; j++)
     {
       if ((uchar)(j + i) != blk[j])

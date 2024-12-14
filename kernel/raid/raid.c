@@ -87,8 +87,12 @@ sys_init_raid(void) {
   current_raid = type;
 
   uint64 ret;
-  if (load_raid() == type) {
+  int loaded_raid;
+  uint8 loaded_faulty;
+  if (load_raid(&loaded_raid, &loaded_faulty) == 0 && 
+      loaded_raid == type) {
     // appropriate raid already initialised
+    faultyDisks = loaded_faulty;
     ret = 0;
   } else {
     ret = raid_inits[type]();
@@ -100,6 +104,10 @@ sys_init_raid(void) {
 
 uint64
 sys_read_raid(void){
+  if (current_raid < 0) {
+    // raid uninitialised
+    return -1;
+  }
   int blkn = 0;
   uchar* data = 0;
 
@@ -117,6 +125,10 @@ sys_read_raid(void){
 
 uint64
 sys_write_raid(void){
+  if (current_raid < 0) {
+    // raid uninitialised
+    return -1;
+  }
   int blkn;
   uchar* data;
 
@@ -135,46 +147,36 @@ sys_write_raid(void){
 
 uint64
 sys_disk_fail_raid(void){
+  if (current_raid < 0) {
+    // raid uninitialised
+    return -1;
+  }
   int diskn;
   argint(0, &diskn);
-
-  uint8 mask = 1 << diskn;
-
-  //printf("diskn: %d | mask %d | faultyDisks: %d\n", diskn, mask, faultyDisks);
-
-  // disk already faulty
-  if (faultyDisks && mask)
-    return -1;
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -2;
-
-  faultyDisks |= mask;
-  raidHeaders[diskn].faulty = 1;
 
   return raid_fails[current_raid](diskn);
 }
 
 uint64
 sys_disk_repaired_raid(void){
+  if (current_raid < 0) {
+    // raid uninitialised
+    return -1;
+  }
+
   int diskn;
   argint(0, &diskn);
-
-  uint8 mask = ~(1 << diskn);
-
-  //printf("diskn: %d | mask %d | faultyDisks: %d\n", diskn, mask, faultyDisks);
-
-  // disk not faulty
-  if ((faultyDisks | mask) != (uint8)-1)
-    return -1;
-
-  faultyDisks &= mask;
-  raidHeaders[diskn].faulty = 0;
 
   return raid_repairs[current_raid](diskn);
 }
 
 uint64
 sys_info_raid(void){
+  if (current_raid < 0) {
+    // raid uninitialised
+    return -1;
+  }
+
   uint64 blkn, blks, diskn;
 
   argaddr(0, &blkn);
@@ -192,17 +194,34 @@ sys_info_raid(void){
 
 uint64
 sys_destroy_raid(void){
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].magic = 0x0;
+  }
+  store_raid();
+  current_raid = -1;
+  faultyDisks = 0;
   return raid_destroys[current_raid]();
 }
 
 uint64
 sys_load_raid(void){
-  current_raid = load_raid();
+  int loaded_raid;
+  uint8 loaded_faulty;
+  
+  if (load_raid(&loaded_raid, &loaded_faulty) == 0) {
+    current_raid = loaded_raid;
+    faultyDisks = loaded_faulty;
+  }
+
   return 0;
 }
 
 uint64
 sys_store_raid(void){
+  if (current_raid < 0) {
+    // raid uninitialised
+    return -1;
+  }
   store_raid();
   return 0;
 }

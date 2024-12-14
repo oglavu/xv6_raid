@@ -38,7 +38,7 @@ static void assign(struct RaidHeader* model, struct RaidHeader* comparator) {
 // load 0-th block from hdd
 // raid uninitialised initialised: returns -1
 // raid initialised: returns ENUM_raidX
-int load_raid(void) {
+int load_raid(int* type, uint8* faulty) {
 
   int first = 0;
   struct RaidHeader model;
@@ -70,7 +70,9 @@ int load_raid(void) {
   }
   kfree(buf);
   printf("Raid disks unanimous | Raid %d already initialised\n", model.raidType-1);
-  return model.raidType;
+  *type = model.raidType;
+  *faulty = model.faulty;
+  return 0;
 }
 
 int store_raid(void) {
