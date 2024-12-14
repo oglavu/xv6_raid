@@ -5,10 +5,13 @@
 #include "raid.h"
 #include "raid_defs.h"
 #include "raid_types.h"
-
-extern void argint(int, int*);
-extern void argaddr(int, uint64*);
-extern void printf(char*, ...);
+#include "../param.h"
+#include "../memlayout.h"
+#include "../riscv.h"
+#include "../spinlock.h"
+#include "../proc.h"
+#include "../fs.h"
+#include "../defs.h"
 
 // raid_init_X
 static uint64 (*raid_inits[])(void) = {
@@ -56,7 +59,7 @@ static uint64 (*raid_repairs[])(int) = {
 };
 
 // raid_info_X
-static uint64 (*raid_infos[])(uint64,uint64,uint64) = {
+static uint64 (*raid_infos[])(uint*,uint*,uint*) = {
 [ENUM_raid_0]  raid_info_0,
 [ENUM_raid_1]  raid_info_1,
 [ENUM_raid_01] raid_info_01,
@@ -103,7 +106,13 @@ sys_read_raid(void){
   argint(0, &blkn);
   argaddr(1, (uint64*)&data);
 
-  return raid_reads[current_raid](blkn, data);
+  // blkn is logical block
+  // blkp is physical block
+
+  struct proc* p = myproc();
+  uchar* paData = (uchar*) (walkaddr(p->pagetable, (uint64)data)  + (uint64)data%PGSIZE);
+
+  return raid_reads[current_raid](blkn, paData);
 }
 
 uint64
@@ -114,7 +123,14 @@ sys_write_raid(void){
   argint(0, &blkn);
   argaddr(1, (uint64*)&data);
 
-  return raid_writes[current_raid](blkn, data);
+  // blkn is logical block
+  // blkp is physical block
+  // 0-th blk is for disc header
+  
+  struct proc* p = myproc();
+  uchar* paData = (uchar*) (walkaddr(p->pagetable, (uint64)data)  + (uint64)data%PGSIZE);
+
+  return raid_writes[current_raid](blkn, paData);
 }
 
 uint64
@@ -165,7 +181,13 @@ sys_info_raid(void){
   argaddr(1, &blks);
   argaddr(2, &diskn);
 
-  return raid_infos[current_raid](blkn, blks, diskn);
+  // get physical address of user space variables
+  struct proc* p = myproc();
+  uint* paBlkn = (uint*) (walkaddr(p->pagetable, blkn)  + blkn%PGSIZE);
+  uint* paBlks = (uint*) (walkaddr(p->pagetable, blks)  + blks%PGSIZE);
+  uint* paDisk = (uint*) (walkaddr(p->pagetable, diskn) + diskn%PGSIZE);
+
+  return raid_infos[current_raid](paBlkn, paBlks, paDisk);
 }
 
 uint64

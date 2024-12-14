@@ -33,21 +33,15 @@ raid_read_0(int blkn, uchar* data) {
   if (blkn < 0 || blkn >= MAX_BLOCKS) 
     return -1;
 
-  // blkn is logical block
-  // blkp is physical block
-
-  struct proc* p = myproc();
-  uchar* paData = (uchar*) (walkaddr(p->pagetable, (uint64)data)  + (uint64)data%PGSIZE);
-
-  int diskn = blkn % RAID_DISKS + RAID_DISKS_START;
-  int blkp = blkn / RAID_DISKS + HEADER_OFFSET;
+  int diskNo = blkn % RAID_DISKS + RAID_DISKS_START;
+  int blkNo = blkn / RAID_DISKS + HEADER_OFFSET;
 
   // disk faulty
-  uint8 mask = 1 << diskn;
+  uint8 mask = 1 << diskNo;
   if (faultyDisks && mask)
     return -2;
 
-  read_block(diskn, blkp, paData);
+  read_block(diskNo, blkNo, data);
 
   return 0;
 }
@@ -59,23 +53,16 @@ raid_write_0(int blkn, uchar* data) {
   if (blkn < 0 || blkn >= MAX_BLOCKS) 
     return -1;
 
-  // blkn is logical block
-  // blkp is physical block
-  // 0-th blk is for disc header
-
-  struct proc* p = myproc();
-  uchar* paData = (uchar*) (walkaddr(p->pagetable, (uint64)data)  + (uint64)data%PGSIZE);
-
-  int diskn = blkn % RAID_DISKS + RAID_DISKS_START;
-  int blkp = blkn / RAID_DISKS + HEADER_OFFSET;
+  int diskNo = blkn % RAID_DISKS + RAID_DISKS_START;
+  int blkNo = blkn / RAID_DISKS + HEADER_OFFSET;
 
   // disk faulty
-  uint8 mask = 1 << diskn;
+  uint8 mask = 1 << diskNo;
   if (faultyDisks && mask) {
     return -2;
   }
 
-  write_block(diskn, blkp, paData);
+  write_block(diskNo, blkNo, data);
 
   return 0;
 }
@@ -91,17 +78,11 @@ raid_repair_0(int diskn) {
 }
 
 uint64
-raid_info_0(uint64 blkn, uint64 blks, uint64 diskn) {
+raid_info_0(uint* blkn, uint* blks, uint* diskn) {
 
-  // get physical address of user space variables
-  struct proc* p = myproc();
-  uint* pBlkn = (uint*) (walkaddr(p->pagetable, blkn)  + blkn%PGSIZE);
-  uint* pBlks = (uint*) (walkaddr(p->pagetable, blks)  + blks%PGSIZE);
-  uint* pDisk = (uint*) (walkaddr(p->pagetable, diskn) + diskn%PGSIZE);
-
-  *pBlkn = MAX_BLOCKS - RAID_DISKS;
-  *pBlks = BSIZE;
-  *pDisk = RAID_DISKS;
+  *blkn = MAX_BLOCKS - RAID_DISKS;
+  *blks = BSIZE;
+  *diskn = RAID_DISKS;
 
   return 0;
 }
