@@ -2,20 +2,18 @@
 // Created by os on 12/8/24.
 //
 
-//
-// Created by os on 12/8/24.
-//
-
 #include "../types.h"
 
-#define RAID_MAGIC 0x15092003
+#define RAID_MAGIC 0x21022020
 #define RAID_DISKS (DISKS - 1)
 #define MAX_BLOCKS (RAID_DISKS * DISK_SIZE / BSIZE)
+#define RAID_DISKS_START (1)
+#define RAID_DISKS_END (DISKS)
 
 enum DISK_ROLE {NONE = 0, DATA = 1, PARITY = 2, MIRROR = 3, MIXED = 4 };
 
 struct RaidHeader {
-    uint64 magic;
+    uint32 magic;
     int raidType;
     int raidRole;
 
@@ -27,7 +25,7 @@ struct RaidHeader {
 
 extern uint8 faultyDisks;
 extern int current_raid;
-extern struct RaidHeader raidHeaders[RAID_DISKS];
+extern struct RaidHeader raidHeaders[RAID_DISKS_START + RAID_DISKS_END];
 
 // raid0.c
 uint64 raid_init_0();

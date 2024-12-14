@@ -4,6 +4,7 @@
 
 #include "raid.h"
 #include "raid_defs.h"
+#include "raid_types.h"
 #include "../param.h"
 #include "../memlayout.h"
 #include "../riscv.h"
@@ -14,7 +15,14 @@
 
 uint64
 raid_init_0() {
-
+  for (int ix=RAID_DISKS_START; ix < RAID_DISKS_END; ix++) {
+    raidHeaders[ix].magic = RAID_MAGIC;
+    raidHeaders[ix].raidType = ENUM_raid_0;
+    raidHeaders[ix].raidRole = DATA;
+    raidHeaders[ix].diskIx = ix;
+    raidHeaders[ix].diskNo = RAID_DISKS;
+    raidHeaders[ix].faulty = faultyDisks;
+  }
   return 0;
 }
 

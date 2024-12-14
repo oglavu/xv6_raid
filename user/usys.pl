@@ -44,3 +44,7 @@ entry("disk_fail_raid");
 entry("disk_repaired_raid");
 entry("info_raid");
 entry("destroy_raid");
+
+#user unavailable
+entry("load_raid");
+entry("store_raid");

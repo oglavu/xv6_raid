@@ -47,11 +47,17 @@ main(int argc, char *argv[])
 
 void check_data(uint blocks, uchar *blk, uint block_size)
 {
+  int dead = 0;
   for (uint i = 0; i < blocks; i++)
   {
     if (read_raid(i, blk) != 0) {
-      printf("Disk dead\n"); break;
+      if (dead == 0) {
+        printf("Disk dead\n"); 
+        dead = 1;
+      }
+      continue;
     }
+    dead = 0;
     for (uint j = 0; j < block_size; j++)
     {
       if ((uchar)(j + i) != blk[j])

@@ -75,14 +75,24 @@ static uint64 (*raid_destroys[])() = {
 
 int current_raid = -1;
 uint8 faultyDisks = 0;
-struct RaidHeader raidHeaders[RAID_DISKS];
+struct RaidHeader raidHeaders[RAID_DISKS_END + RAID_DISKS_START];
 
 uint64
 sys_init_raid(void) {
   int type;
   argint(0, &type);
   current_raid = type;
-  return raid_inits[type]();
+
+  uint64 ret;
+  if (load_raid() == type) {
+    // appropriate raid already initialised
+    ret = 0;
+  } else {
+    ret = raid_inits[type]();
+    store_raid();
+  }
+
+  return ret;
 }
 
 uint64
@@ -119,7 +129,7 @@ sys_disk_fail_raid(void){
   // disk already faulty
   if (faultyDisks && mask)
     return -1;
-  if (diskn <= 0 || diskn > RAID_DISKS)
+  if (diskn <= 0 || diskn > RAID_DISKS_END)
     return -2;
 
   faultyDisks |= mask;
@@ -161,5 +171,17 @@ sys_info_raid(void){
 uint64
 sys_destroy_raid(void){
   return raid_destroys[current_raid]();
+}
+
+uint64
+sys_load_raid(void){
+  current_raid = load_raid();
+  return 0;
+}
+
+uint64
+sys_store_raid(void){
+  store_raid();
+  return 0;
 }
 

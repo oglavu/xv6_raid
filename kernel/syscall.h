@@ -28,3 +28,6 @@
 #define SYS_disk_repaired_raid 	26
 #define SYS_info_raid 			27
 #define SYS_destroy_raid 		28
+
+#define SYS_load_raid           29
+#define SYS_store_raid          30

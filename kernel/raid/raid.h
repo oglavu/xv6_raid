@@ -5,8 +5,8 @@
 #include "../types.h"
 
 // ls.c
-void load_raid(void);
-void store_raid(void);
+int load_raid(void);
+int store_raid(void);
 
 
 

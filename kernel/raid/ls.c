@@ -6,13 +6,15 @@ extern void printf(char*, ...);
 extern void write_block(int diskn, int blockno, uchar* data);
 extern void read_block(int diskn, int blockno, uchar* data);
 
+extern void* kalloc();
+extern void kfree(void*);
+
 static int validate(struct RaidHeader* model, struct RaidHeader* comparator) {
-  return ( model->magic == comparator->magic &&
-      model->raidType == comparator->raidType &&
-      model->raidRole == comparator->raidRole &&
-      model->diskIx   == comparator->diskIx &&
-      model->diskNo   == comparator->diskNo &&
-      model->faulty   == comparator->faulty );
+  return ( (model->magic == comparator->magic) &&
+      (model->raidType == comparator->raidType) &&
+      (model->raidRole == comparator->raidRole) &&
+      (model->diskNo   == comparator->diskNo) &&
+      (model->faulty   == comparator->faulty) );
 }
 
 static void assign(struct RaidHeader* model, struct RaidHeader* comparator) {
@@ -24,43 +26,61 @@ static void assign(struct RaidHeader* model, struct RaidHeader* comparator) {
   model->faulty   = comparator->faulty;
 }
 
-void load_raid(void) {
+// static void printHeader(struct RaidHeader* header) {
+//   printf("-> Magic number: %p\n", header->magic);
+//   printf("-> Raid Type: %d\n", header->raidType);
+//   printf("-> Raid Role: %d\n", header->raidRole);
+//   printf("-> Disk Index: %d\n", header->diskIx);
+//   printf("-> Disk Number: %d\n", header->diskNo);
+// }
+
+
+// load 0-th block from hdd
+// raid uninitialised initialised: returns -1
+// raid initialised: returns ENUM_raidX
+int load_raid(void) {
 
   int first = 0;
   struct RaidHeader model;
-  for (int ix=1; ix<=DISKS; ix++) {
-    
-    printf("Pre citanja\n");
-    read_block(ix, 0, (uchar*)&raidHeaders[ix]);
-    printf("Posle citanja\n");
+  uchar* buf = (uchar*) kalloc();
+  for (int ix=RAID_DISKS_START; ix < RAID_DISKS_END; ix++) {
+    read_block(ix, 0, buf);
+
+    assign(&raidHeaders[ix], (struct RaidHeader*)buf);
+    printf("Loading Raid | %d\n", ix);
+    //printHeader(&raidHeaders[ix]);
     
     if (first == 0) {
       // check magic number
       if (raidHeaders[ix].magic != RAID_MAGIC) {
         printf("Raid disks not initialised\n");
-        return;
+        kfree(buf);
+        return -1;
       }
       first = 1;
       assign(&model, &raidHeaders[ix]);
       continue;
     }
     // 0 -> unanimous
+    printf("%d \n", validate(&model, &raidHeaders[ix]));
     if (validate(&model, &raidHeaders[ix]) == 0) {
       printf("Raid disks NOT unanimous | Waiting raid initialisation\n");
       break;
     }
   }
-  current_raid = model.raidType;
-  printf("Raid disks unanimous | Raid already initialised\n");
-
+  kfree(buf);
+  printf("Raid disks unanimous | Raid %d already initialised\n", model.raidType-1);
+  return model.raidType;
 }
 
-void store_raid(void) {
+int store_raid(void) {
 
-  for (int ix=1; ix<=DISKS; ix++) {
-
+  for (int ix=RAID_DISKS_START; ix<RAID_DISKS_END; ix++) {
+    printf("Storing Raid | %d\n", ix);
+    //printHeader(&raidHeaders[ix]);
     write_block(ix, 0, (uchar*)&raidHeaders[ix]);
 
   }
 
+  return 0;
 }
