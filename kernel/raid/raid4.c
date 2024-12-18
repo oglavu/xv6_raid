@@ -16,16 +16,6 @@
 #define AVAIL_BLOCKS ((RAID_DISKS - 1) * (MAX_BLOCKS - 1))
 #define XOR(a,b) ((~a | ~b) & (a | b))
 
-static void reset_disk(int diskn) {
-  
-  uchar* buf = (uchar*)kalloc();
-  memset(buf, 0, BSIZE);
-  for (int ix=HEADER_OFFSET; ix <= MAX_BLOCKS; ix++) {
-    write_block(diskn, ix, buf);
-  }
-  kfree(buf);
-}
-
 static void pair_failed_block(int diskNo, int blkNo, uchar* new_buf) {
   // MUST BE CALLED ON _not_ FUNCTIONING DISK
   // new_buf is NEW content of disk (diskNo), block (blkNo)
@@ -111,10 +101,14 @@ raid_init_4() {
   raidHeaders[1].raidRole = PARITY;
 
   // parity block must be zero set
-  for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    reset_disk(ix);
-    //printf("Raid disk %d reset\n", ix);
+  uchar* buf = (uchar*)kalloc();
+  memset(buf, 0, BSIZE);
+  for (int ix1=RAID_DISKS_START; ix1 <= RAID_DISKS_END; ix1++) {
+    for (int ix2=HEADER_OFFSET; ix2 <= MAX_BLOCKS; ix2++) {
+      write_block(ix1, ix2, buf);
+    }
   }
+  kfree(buf);
 
   return 0;
 }
@@ -152,8 +146,6 @@ raid_write_4(int blkn, uchar* data) {
 
   int diskNo = blkn % (RAID_DISKS - 1) + RAID_DISKS_START + 1;
   int blkNo = blkn / (RAID_DISKS - 1) + HEADER_OFFSET;
-
-  //printf("Writing to: %d disk, %d block\n", diskNo, blkNo);
 
   // disk faulty
   uint8 mask = 1 << diskNo;
