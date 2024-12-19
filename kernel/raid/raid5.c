@@ -16,6 +16,73 @@
 #define AVAIL_BLOCKS ((RAID_DISKS - 1) * (MAX_BLOCKS - 1))
 #define XOR(a,b) ((~a | ~b) & (a | b))
 
+static void pair_block(int diskNo, int blkNo, uchar* new_buf) {
+
+  int p_dsk = (blkNo - HEADER_OFFSET) % RAID_DISKS + RAID_DISKS_START;
+
+  uchar* buf = (uchar*)kalloc();
+  uchar* parity = (uchar*)kalloc();
+  read_block(diskNo, blkNo, buf);
+  read_block(p_dsk, blkNo, parity);
+
+  for (int ix=0; ix<BSIZE; ix++) {
+    uchar tmp = XOR(buf[ix], new_buf[ix]);
+    parity[ix] = XOR(parity[ix], tmp);
+  } 
+  write_block(p_dsk, blkNo, parity);
+
+}
+
+static void retrive_block(int diskn, int blkn, uchar* buf) {
+  uchar* tmp = (uchar*)kalloc();
+  memset(buf, 0, BSIZE);
+  for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    if (ix == diskn) continue;
+
+    read_block(ix, blkn, tmp);
+    
+    for (int ix2=0; ix2 < BSIZE; ix2++) {
+      buf[ix2] = XOR(buf[ix2], tmp[ix2]);
+    }
+
+  }
+  kfree(tmp);
+
+}
+
+static void pair_failed_block(int diskNo, int blkNo, uchar* new_buf) {
+  // MUST BE CALLED ON _not_ FUNCTIONING DISK
+  // new_buf is NEW content of disk (diskNo), block (blkNo)
+
+  int p_dsk = (blkNo - HEADER_OFFSET) % RAID_DISKS + RAID_DISKS_START;
+
+  uchar* parity = (uchar*)kalloc();
+  uchar* tmp = (uchar*)kalloc();
+  memmove(parity, new_buf, BSIZE);
+  for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ++ix) {
+    if (diskNo == ix) continue;
+    if (p_dsk == ix) continue;
+    
+    read_block(ix, blkNo, tmp);
+    for (int ix=0; ix < BSIZE; ix++) {
+      parity[ix] = XOR(parity[ix], tmp[ix]);
+    }
+  }
+  
+  write_block(p_dsk, blkNo, parity);
+  kfree(parity);
+  kfree(tmp);
+
+}
+
+static int count_ones(uchar n) {
+  int count = 0;
+  for (count = 0; n; count++) {
+    n &= n - 1;
+  }
+  return count;
+}
+
 uint64
 raid_init_5() {
   // raid_5 requires at least three hdds
@@ -51,10 +118,24 @@ raid_read_5(int blkn, uchar* data) {
   if (blkn < 0 || blkn >= AVAIL_BLOCKS) 
     return -1;
 
-  int blkNo = blkn / (RAID_DISKS - 1) + HEADER_OFFSET; // dobro
-  int diskNo = (blkn + ((blkn % (RAID_DISKS - 1) + HEADER_OFFSET) >= blkNo)) % RAID_DISKS + RAID_DISKS_START;
+  int row = blkn / (RAID_DISKS - 1);
+  int p_blk = row % RAID_DISKS;
+  int unadj_col = blkn % (RAID_DISKS - 1);
+  int col = (unadj_col >= p_blk) ? (unadj_col+1) : (unadj_col);
 
-  read_block(diskNo, blkNo, data);
+  int blkNo = row + HEADER_OFFSET;
+  int diskNo = col + RAID_DISKS_START;
+
+  uint8 mask = 1 << diskNo;
+  if (faultyDisks & mask) {
+    if (count_ones(faultyDisks) > 1) {
+      return -2;
+    } else {
+      retrive_block(diskNo, blkNo, data);
+    }
+  } else {
+    read_block(diskNo, blkNo, data);
+  }
   return 0;
 }
 
@@ -65,21 +146,88 @@ raid_write_5(int blkn, uchar* data) {
   if (blkn < 0 || blkn >= AVAIL_BLOCKS) 
     return -1;
 
-  int blkNo = blkn / (RAID_DISKS - 1) + HEADER_OFFSET; // dobro
-  int diskNo = (blkn + ((blkn % (RAID_DISKS - 1) + HEADER_OFFSET) >= blkNo)) % RAID_DISKS + RAID_DISKS_START;
+  int row = blkn / (RAID_DISKS - 1);
+  int p_blk = row % RAID_DISKS;
+  int unadj_col = blkn % (RAID_DISKS - 1);
+  int col = (unadj_col >= p_blk) ? (unadj_col+1) : (unadj_col);
 
-  write_block(diskNo, blkNo, data);
+  int blkNo = row + HEADER_OFFSET;
+  int diskNo = col + RAID_DISKS_START;
+
+  // disk faulty
+  uint8 mask = 1 << diskNo;
+  if (faultyDisks & mask) {
+    if (count_ones(faultyDisks) > 1) {
+      return -2;
+    } else {
+      pair_failed_block(diskNo, blkNo, data);
+    }
+  } else {
+    pair_block(diskNo, blkNo, data);
+    write_block(diskNo, blkNo, data);
+  }
   return 0;
 }
 
 uint64
 raid_fail_5(int diskn) {
-    return 0;
+  uint8 mask = 1 << diskn;
+
+  // disk already faulty
+  if (faultyDisks & mask)
+    return -1;
+  if (diskn <= 0 || diskn > RAID_DISKS_END)
+    return -2;
+
+  faultyDisks |= mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
+
+  return 0;
 }
 
 uint64
 raid_repair_5(int diskn) {
-    return 0;
+  if (diskn <= 0 || diskn > RAID_DISKS_END)
+    return -1;
+  
+  // disk not faulty
+  uint8 mask = 1 << diskn;
+  if (!(faultyDisks & mask))
+    return -2;
+
+  // too many failed, can't repair
+  if (count_ones(faultyDisks) > 1)
+    return -3;
+
+  uchar* buf = (uchar*) kalloc();
+  uchar* tmp = (uchar*) kalloc();
+  memset(buf, 0, BSIZE);
+  for (int ix1 = HEADER_OFFSET; ix1 < MAX_BLOCKS; ix1++) {
+
+    for (int ix2 = RAID_DISKS_START; ix2<= RAID_DISKS_END; ix2++) {
+      if (diskn == ix2) continue;
+      
+      read_block(ix2, ix1, tmp);
+      for (int ix3 = 0; ix3 < BSIZE; ix3++) {
+        buf[ix3] = XOR(buf[ix3], tmp[ix3]);
+      }
+    }
+    write_block(diskn, ix1, buf);
+    memset(buf, 0, BSIZE);
+  }
+  kfree(buf);
+  kfree(tmp);
+
+  faultyDisks &= ~mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
+
+  return 0;
 }
 
 uint64
