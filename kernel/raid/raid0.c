@@ -103,8 +103,3 @@ raid_info_0(uint* blkn, uint* blks, uint* diskn) {
 
   return 0;
 }
-
-uint64
-raid_destroy_0() {
-  return 0;
-}

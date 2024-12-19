@@ -239,8 +239,3 @@ raid_info_5(uint* blkn, uint* blks, uint* diskn) {
 
   return 0;
 }
-
-uint64
-raid_destroy_5() {
-    return 0;
-}

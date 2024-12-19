@@ -67,15 +67,6 @@ static uint64 (*raid_infos[])(uint*,uint*,uint*) = {
 [ENUM_raid_5]  raid_info_5
 };
 
-// raid_destroy_X
-static uint64 (*raid_destroys[])() = {
-[ENUM_raid_0]  raid_destroy_0,
-[ENUM_raid_1]  raid_destroy_1,
-[ENUM_raid_01] raid_destroy_01,
-[ENUM_raid_4]  raid_destroy_4,
-[ENUM_raid_5]  raid_destroy_5
-};
-
 int current_raid = -1;
 uint8 faultyDisks = 0;
 struct RaidHeader raidHeaders[RAID_DISKS_START + RAID_DISKS_END];
@@ -200,7 +191,7 @@ sys_destroy_raid(void){
   store_raid();
   current_raid = -1;
   faultyDisks = 0;
-  return raid_destroys[current_raid]();
+  return 0;
 }
 
 uint64
