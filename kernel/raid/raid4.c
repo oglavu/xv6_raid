@@ -9,12 +9,15 @@
 #include "../memlayout.h"
 #include "../riscv.h"
 #include "../spinlock.h"
+#include "../sleeplock.h"
 #include "../proc.h"
 #include "../fs.h"
 #include "../defs.h"
 
 #define AVAIL_BLOCKS ((RAID_DISKS - 1) * (MAX_BLOCKS - 1))
 #define XOR(a,b) ((~a | ~b) & (a | b))
+
+static struct sleeplock strip_locks[MAX_BLOCKS];
 
 static void pair_failed_block(int diskNo, int blkNo, uchar* new_buf) {
   // MUST BE CALLED ON _not_ FUNCTIONING DISK
@@ -100,13 +103,20 @@ raid_init_4() {
   // disk_1 is parity
   raidHeaders[1].raidRole = PARITY;
 
+  // init sleep locks
+  for (int ix = 0; ix < MAX_BLOCKS; ix++) {
+    initsleeplock(&strip_locks[ix], "strip_lock_4");
+  }
+
   // parity block must be zero set
   uchar* buf = (uchar*)kalloc();
   memset(buf, 0, BSIZE);
-  for (int ix1=RAID_DISKS_START; ix1 <= RAID_DISKS_END; ix1++) {
-    for (int ix2=HEADER_OFFSET; ix2 <= MAX_BLOCKS; ix2++) {
+  for (int ix1=HEADER_OFFSET; ix1 < MAX_BLOCKS; ix1++) {
+    acquiresleep(&strip_locks[ix1]);
+    for (int ix2=RAID_DISKS_START; ix2 <= RAID_DISKS_END; ix2++) {
       write_block(ix1, ix2, buf);
     }
+    releasesleep(&strip_locks[ix1]);
   }
   kfree(buf);
 
@@ -129,11 +139,17 @@ raid_read_4(int blkn, uchar* data) {
     if (count_ones(faultyDisks) > 1) {
       return -2;
     } else {
+      acquiresleep(&strip_locks[blkNo]);
+
       retrive_block(diskNo, blkNo, data);
     }
   } else {
+    acquiresleep(&strip_locks[blkNo]);
+
     read_block(diskNo, blkNo, data);
   }
+
+  releasesleep(&strip_locks[blkNo]);
   return 0;
 }
 
@@ -153,13 +169,18 @@ raid_write_4(int blkn, uchar* data) {
     if (count_ones(faultyDisks) > 1) {
       return -2;
     } else {
+      acquiresleep(&strip_locks[blkNo]);
+
       pair_failed_block(diskNo, blkNo, data);
     }
   } else {
+    acquiresleep(&strip_locks[blkNo]);
+
     pair_block(diskNo, blkNo, data);
     write_block(diskNo, blkNo, data);
   }
 
+  releasesleep(&strip_locks[blkNo]);
   return 0;
 }
 
@@ -200,7 +221,7 @@ raid_repair_4(int diskn) {
   uchar* tmp = (uchar*) kalloc();
   memset(buf, 0, BSIZE);
   for (int ix1 = HEADER_OFFSET; ix1 < MAX_BLOCKS; ix1++) {
-
+    acquiresleep(&strip_locks[ix1]);
     for (int ix2 = RAID_DISKS_START; ix2<= RAID_DISKS_END; ix2++) {
       if (diskn == ix2) continue;
       
@@ -210,6 +231,7 @@ raid_repair_4(int diskn) {
       }
     }
     write_block(diskn, ix1, buf);
+    releasesleep(&strip_locks[ix1]);
     memset(buf, 0, BSIZE);
   }
   kfree(buf);
