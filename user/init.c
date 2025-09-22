@@ -11,14 +11,10 @@
 
 char *argv[] = { "sh", 0 };
 
-extern uint64 load_raid(void);
-
 int
 main(void)
 {
   int pid, wpid;
-
-  load_raid();
 
   if(open("console", O_RDWR) < 0){
     mknod("console", CONSOLE, 0);

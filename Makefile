@@ -158,7 +158,8 @@ UPROGS=\
 	$U/_zombie\
 	$U/_maxout_vm\
 	$U/_rw_test\
-	$U/_shutdown_test
+	$U/_shutdown_test\
+	$U/_rewrite_test
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

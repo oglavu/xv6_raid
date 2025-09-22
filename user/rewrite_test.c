@@ -11,8 +11,14 @@ main(int argc, char *argv[])
 {
   int n = argc - 1;
   int arr[8];
-  for (int ix=1; ix < argc; ix++) {
-    arr[ix-1] = atoi(argv[ix]);
+  int type = atoi(argv[1]);
+  for (int ix=2; ix < argc; ix++) {
+    arr[ix-2] = atoi(argv[ix]);
+  }
+
+  if (init_raid(type+1) < 0) {
+    printf("Initialisation unsuccessful\n");
+    return 0;
   }
 
   uint disk_num = 2, block_num = 3, block_size =4;
