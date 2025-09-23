@@ -69,12 +69,16 @@ static uint64 (*raid_infos[])(uint*,uint*,uint*) = {
 
 int current_raid = -1;
 uint8 faultyDisks = 0;
-struct RaidHeader raidHeaders[RAID_DISKS_START + RAID_DISKS_END];
+struct RaidHeader raidHeaders[RAID_DISKS_START + RAID_DISKS];
 
 uint64
 sys_init_raid(void) {
   int type;
   argint(0, &type);
+
+  if (!(ENUM_raid_0 <= type && type <= ENUM_raid_5))
+    return -1;
+
   current_raid = type;
 
   uint64 ret;
@@ -83,7 +87,7 @@ sys_init_raid(void) {
   if (load_raid(&loaded_raid, &loaded_faulty) == 0 && 
       loaded_raid == type) {
     // appropriate raid already initialised
-    faultyDisks = loaded_faulty;
+    faultyDisks |= loaded_faulty;
     ret = 0;
   } else {
     ret = raid_inits[type]();
@@ -145,6 +149,9 @@ sys_disk_fail_raid(void){
   int diskn;
   argint(0, &diskn);
 
+  if (diskn < RAID_DISKS_START || diskn > RAID_DISKS_END)
+    return -2;
+
   return raid_fails[current_raid](diskn);
 }
 
@@ -157,6 +164,9 @@ sys_disk_repaired_raid(void){
 
   int diskn;
   argint(0, &diskn);
+
+  if (diskn < RAID_DISKS_START || diskn > RAID_DISKS_END)
+    return -2;
 
   return raid_repairs[current_raid](diskn);
 }
@@ -185,6 +195,9 @@ sys_info_raid(void){
 
 uint64
 sys_destroy_raid(void){
+  if (current_raid < 0)
+    return -1;
+
   for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
     raidHeaders[ix].magic = 0x0;
   }

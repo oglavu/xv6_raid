@@ -191,8 +191,6 @@ raid_fail_4(int diskn) {
   // disk already faulty
   if (faultyDisks & mask)
     return -1;
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -2;
 
   faultyDisks |= mask;
   for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
@@ -205,17 +203,21 @@ raid_fail_4(int diskn) {
 
 uint64
 raid_repair_4(int diskn) {
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -1;
-  
+
   // disk not faulty
   uint8 mask = 1 << diskn;
   if (!(faultyDisks & mask))
-    return -2;
+    return -0x10;
+
+  faultyDisks &= ~mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
 
   // too many failed, can't repair
   if (count_ones(faultyDisks) > 1)
-    return -3;
+    return 0;
 
   uchar* buf = (uchar*) kalloc();
   uchar* tmp = (uchar*) kalloc();
@@ -236,12 +238,6 @@ raid_repair_4(int diskn) {
   }
   kfree(buf);
   kfree(tmp);
-
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
 
   return 0;
 }

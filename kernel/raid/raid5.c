@@ -112,7 +112,7 @@ raid_init_5() {
   for (int ix1=HEADER_OFFSET; ix1 < MAX_BLOCKS; ix1++) {
     acquiresleep(&strip_locks[ix1]);
     for (int ix2=RAID_DISKS_START; ix2 <= RAID_DISKS_END; ix2++) {
-      write_block(ix1, ix2, buf);
+      write_block(ix2, ix1, buf);
     }
     releasesleep(&strip_locks[ix1]);
   }
@@ -192,8 +192,6 @@ raid_fail_5(int diskn) {
   // disk already faulty
   if (faultyDisks & mask)
     return -1;
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -2;
 
   faultyDisks |= mask;
   for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
@@ -206,13 +204,10 @@ raid_fail_5(int diskn) {
 
 uint64
 raid_repair_5(int diskn) {
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -1;
-  
   // disk not faulty
   uint8 mask = 1 << diskn;
   if (!(faultyDisks & mask))
-    return -2;
+    return -0x10;
 
   faultyDisks &= ~mask;
   for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
@@ -222,7 +217,7 @@ raid_repair_5(int diskn) {
 
   // too many failed, can't repair
   if (count_ones(faultyDisks) > 1)
-    return -3;
+    return 0;
 
   uchar* buf = (uchar*) kalloc();
   uchar* tmp = (uchar*) kalloc();

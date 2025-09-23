@@ -14,6 +14,7 @@
 #include "../defs.h"
 
 #define AVAIL_BLOCKS (RAID_DISKS * (MAX_BLOCKS - 1) / 2)
+#define MIRROR_START (RAID_DISKS / 2)
 
 // static void printHeader(struct RaidHeader* header) {
 //   printf("-> Magic number: %p\n", header->magic);
@@ -44,7 +45,7 @@ raid_init_01() {
   for (int ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
     raidHeaders[ix].magic = RAID_MAGIC;
     raidHeaders[ix].raidType = ENUM_raid_01;
-    raidHeaders[ix].raidRole = (ix % 2 == 1) ? DATA : MIRROR;
+    raidHeaders[ix].raidRole = (ix <= MIRROR_START) ? DATA : MIRROR;
     raidHeaders[ix].diskIx = ix;
     raidHeaders[ix].diskNo = RAID_DISKS;
     raidHeaders[ix].faulty = faultyDisks;
@@ -59,13 +60,13 @@ raid_read_01(int blkn, uchar* data) {
   if (blkn < 0 || blkn >= AVAIL_BLOCKS) 
     return -1;
 
-  int diskNo = 2 * blkn % RAID_DISKS + RAID_DISKS_START;
-  int blkNo  = 2 * blkn / RAID_DISKS + HEADER_OFFSET;
+  int diskNo = blkn % (RAID_DISKS / 2) + RAID_DISKS_START;
+  int blkNo  = blkn / (RAID_DISKS / 2) + HEADER_OFFSET;
 
   // disk faulty
   uint8 mask = 1 << diskNo;
   if (faultyDisks & mask)
-    diskNo++;
+    diskNo += MIRROR_START;
   mask = 1 << diskNo;
   if (faultyDisks & mask)
     return -2;
@@ -82,21 +83,22 @@ raid_write_01(int blkn, uchar* data) {
   if (blkn < 0 || blkn >= AVAIL_BLOCKS) 
     return -1;
 
-  int diskNo = 2 * blkn % RAID_DISKS + RAID_DISKS_START;
-  int blkNo  = 2 * blkn / RAID_DISKS + HEADER_OFFSET;
+  int diskNo = blkn % (RAID_DISKS / 2) + RAID_DISKS_START;
+  int blkNo  = blkn / (RAID_DISKS / 2) + HEADER_OFFSET;
 
   // disk faulty
   uint8 mask = 1 << diskNo;
   uint8 dataFaulty = (faultyDisks & mask);
-  uint8 mirrorFaulty = (faultyDisks & (mask << 1));
+  uint8 pair_mask = 1 << (diskNo + MIRROR_START);
+  uint8 pairFaulty = (faultyDisks & pair_mask);
 
-  if (dataFaulty && mirrorFaulty)
+  if (dataFaulty && pairFaulty)
     return -2;
 
   if (!dataFaulty)
     write_block(diskNo, blkNo, data); // data disk
-  if (!mirrorFaulty)
-    write_block(diskNo + 1, blkNo, data); // mirror disk
+  if (!pairFaulty)
+    write_block(diskNo + MIRROR_START, blkNo, data); // mirror disk
   
   return 0;
 }
@@ -105,29 +107,25 @@ uint64
 raid_fail_01(int diskn) {
   uint8 mask = 1 << diskn;
   // disk already faulty
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -1;
   if (faultyDisks & mask)
-    return -2;
+    return -0x10;
 
   faultyDisks |= mask;
   for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
     raidHeaders[ix].faulty = faultyDisks;
   }
   store_raid();
-
+  
   return 0;
 }
 
 uint64
 raid_repair_01(int diskn) {
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -1;
   
   // disk not faulty
   uint8 mask = 1 << diskn;
   if (!(faultyDisks & mask))
-    return -2;
+    return -0x10;
   
   faultyDisks &= ~mask;
   for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
@@ -135,12 +133,12 @@ raid_repair_01(int diskn) {
   }
   store_raid();
 
-  int pair = diskn ^ 0x1;
+  int pair = diskn + MIRROR_START;
 
   // pair is faulty as well
   uint8 pair_mask = 1 << pair;
   if (faultyDisks & pair_mask)
-    return -3;
+    return 0;
 
   copy_disk(diskn, pair);
 

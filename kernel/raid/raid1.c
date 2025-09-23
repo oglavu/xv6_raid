@@ -120,14 +120,11 @@ raid_fail_1(int diskn) {
 
 uint64
 raid_repair_1(int diskn) {
-
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -1;
   
   // disk not faulty
   uint8 mask = 1 << diskn;
   if (!(faultyDisks & mask))
-    return -2;
+    return -0x10;
   
   int pair = diskn ^ 0x1;
   
@@ -140,7 +137,7 @@ raid_repair_1(int diskn) {
   // pair is faulty as well
   uint8 pair_mask = 1 << pair;
   if (faultyDisks & pair_mask)
-    return -3;
+    return 0;
 
   // copy whole disk
   copy_disk(diskn, pair);

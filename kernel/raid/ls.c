@@ -76,7 +76,7 @@ int load_raid(int* type, uint8* faulty) {
     }
   }
   kfree(buf);
-  printf("Raid disks unanimous | Raid %d already initialised\n", model.raidType-1);
+  printf("Raid disks unanimous | Raid %d already initialised\n", model.raidType);
   *type = model.raidType;
   *faulty = (loaded_faulty & ~1);
   return 0;
