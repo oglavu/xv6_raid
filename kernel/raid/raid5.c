@@ -214,6 +214,12 @@ raid_repair_5(int diskn) {
   if (!(faultyDisks & mask))
     return -2;
 
+  faultyDisks &= ~mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
+
   // too many failed, can't repair
   if (count_ones(faultyDisks) > 1)
     return -3;
@@ -237,12 +243,6 @@ raid_repair_5(int diskn) {
   }
   kfree(buf);
   kfree(tmp);
-
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
 
   return 0;
 }

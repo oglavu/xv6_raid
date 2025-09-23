@@ -129,20 +129,20 @@ raid_repair_01(int diskn) {
   if (!(faultyDisks & mask))
     return -2;
   
-  int pair = (diskn % 2 == 0) ? (diskn - 1) : (diskn + 1);
-  
+  faultyDisks &= ~mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
+
+  int pair = diskn ^ 0x1;
+
   // pair is faulty as well
   uint8 pair_mask = 1 << pair;
   if (faultyDisks & pair_mask)
     return -3;
 
   copy_disk(diskn, pair);
-
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
 
   return 0;
 }

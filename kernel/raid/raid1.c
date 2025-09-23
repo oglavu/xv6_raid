@@ -15,6 +15,16 @@
 
 #define AVAIL_BLOCKS (RAID_DISKS * (MAX_BLOCKS - 1) / 2)
 
+static void copy_disk(int diskNo, int pairNo) {
+  uchar buf[BSIZE];
+  for (int ix=HEADER_OFFSET; ix < MAX_BLOCKS; ix++) {
+    printf("Block: %d (%d -> %d)\n", ix, pairNo, diskNo);
+    read_block(pairNo, ix, buf);
+    write_block(diskNo, ix, buf);
+  }
+  kfree(buf);
+}
+
 uint64
 raid_init_1() {
   // raid_1 requires at least two hdds
@@ -119,27 +129,21 @@ raid_repair_1(int diskn) {
   if (!(faultyDisks & mask))
     return -2;
   
-  int pair = (diskn % 2 == 0) ? (diskn - 1) : (diskn + 1);
+  int pair = diskn ^ 0x1;
+  
+  faultyDisks &= ~mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
   
   // pair is faulty as well
   uint8 pair_mask = 1 << pair;
   if (faultyDisks & pair_mask)
     return -3;
 
-  // TODO: copy whole disk
-  // uchar* buf = (uchar*)kalloc();
-  // for (int ix=HEADER_OFFSET; ix < MAX_BLOCKS; ix++) {
-  //   printf("Block: %d\n", ix);
-  //   read_block(pair, ix, buf);
-  //   write_block(diskn, ix, buf);
-  // }
-  // kfree(buf);
-
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
+  // copy whole disk
+  copy_disk(diskn, pair);
 
   return 0;
 }

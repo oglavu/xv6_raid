@@ -91,7 +91,21 @@ raid_fail_0(int diskn) {
 
 uint64
 raid_repair_0(int diskn) {
-  return -1;
+  if (diskn <= 0 || diskn > RAID_DISKS_END)
+    return -1;
+
+  // disk not faulty
+  uint8 mask = 1 << diskn;
+  if (!(faultyDisks & mask))
+    return -2;
+
+  faultyDisks &= ~mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
+
+  return 0;
 }
 
 uint64

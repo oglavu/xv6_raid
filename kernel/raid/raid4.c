@@ -114,7 +114,7 @@ raid_init_4() {
   for (int ix1=HEADER_OFFSET; ix1 < MAX_BLOCKS; ix1++) {
     acquiresleep(&strip_locks[ix1]);
     for (int ix2=RAID_DISKS_START; ix2 <= RAID_DISKS_END; ix2++) {
-      write_block(ix1, ix2, buf);
+      write_block(ix2, ix1, buf);
     }
     releasesleep(&strip_locks[ix1]);
   }
