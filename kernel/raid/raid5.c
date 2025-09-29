@@ -187,37 +187,15 @@ raid_write_5(int blkn, uchar* data) {
 
 uint64
 raid_fail_5(int diskn) {
-  uint8 mask = 1 << diskn;
-
-  // disk already faulty
-  if (faultyDisks & mask)
-    return -1;
-
-  faultyDisks |= mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
-
   return 0;
 }
 
 uint64
 raid_repair_5(int diskn) {
-  // disk not faulty
-  uint8 mask = 1 << diskn;
-  if (!(faultyDisks & mask))
-    return -0x10;
-
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
 
   // too many failed, can't repair
   if (count_ones(faultyDisks) > 1)
-    return 0;
+    return -1;
 
   uchar* buf = (uchar*) kalloc();
   uchar* tmp = (uchar*) kalloc();

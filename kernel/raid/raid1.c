@@ -14,11 +14,11 @@
 #include "../defs.h"
 
 #define AVAIL_BLOCKS (RAID_DISKS * (MAX_BLOCKS - 1) / 2)
+#define MIRROR_START (RAID_DISKS / 2)
 
 static void copy_disk(int diskNo, int pairNo) {
   uchar buf[BSIZE];
   for (int ix=HEADER_OFFSET; ix < MAX_BLOCKS; ix++) {
-    printf("Block: %d (%d -> %d)\n", ix, pairNo, diskNo);
     read_block(pairNo, ix, buf);
     write_block(diskNo, ix, buf);
   }
@@ -85,7 +85,7 @@ raid_write_1(int blkn, uchar* data) {
   // disk faulty
   uint8 mask = 1 << diskNo;
   uint8 dataFaulty = (faultyDisks & mask);
-  uint8 mirrorFaulty = (faultyDisks & (mask << 1));
+  uint8 mirrorFaulty = (faultyDisks & (mask << MIRROR_START));
 
   if (dataFaulty && mirrorFaulty)
     return -2;
@@ -100,44 +100,18 @@ raid_write_1(int blkn, uchar* data) {
 
 uint64
 raid_fail_1(int diskn) {
-    
-  uint8 mask = 1 << diskn;
-
-  // disk already faulty
-  if (faultyDisks & mask)
-    return -1;
-  if (diskn <= 0 || diskn > RAID_DISKS_END)
-    return -2;
-
-  faultyDisks |= mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
-
   return 0;
 }
 
 uint64
 raid_repair_1(int diskn) {
-  
-  // disk not faulty
-  uint8 mask = 1 << diskn;
-  if (!(faultyDisks & mask))
-    return -0x10;
-  
-  int pair = diskn ^ 0x1;
-  
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
+
+  int pair = (diskn - RAID_DISKS_START + MIRROR_START) % RAID_DISKS + RAID_DISKS_START;
   
   // pair is faulty as well
   uint8 pair_mask = 1 << pair;
   if (faultyDisks & pair_mask)
-    return 0;
+    return -1;
 
   // copy whole disk
   copy_disk(diskn, pair);

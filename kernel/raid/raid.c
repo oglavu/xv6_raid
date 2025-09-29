@@ -9,6 +9,7 @@
 #include "../memlayout.h"
 #include "../riscv.h"
 #include "../spinlock.h"
+#include "../sleeplock.h"
 #include "../proc.h"
 #include "../fs.h"
 #include "../defs.h"
@@ -67,6 +68,8 @@ static uint64 (*raid_infos[])(uint*,uint*,uint*) = {
 [ENUM_raid_5]  raid_info_5
 };
 
+static struct sleeplock internal_struct_lock;
+
 int current_raid = -1;
 uint8 faultyDisks = 0;
 struct RaidHeader raidHeaders[RAID_DISKS_START + RAID_DISKS];
@@ -79,20 +82,19 @@ sys_init_raid(void) {
   if (!(ENUM_raid_0 <= type && type <= ENUM_raid_5))
     return -1;
 
-  current_raid = type;
+  acquiresleep(&internal_struct_lock);
 
   uint64 ret;
-  int loaded_raid;
-  uint8 loaded_faulty;
-  if (load_raid(&loaded_raid, &loaded_faulty) == 0 && 
-      loaded_raid == type) {
+  if (current_raid == type) {
     // appropriate raid already initialised
-    faultyDisks |= loaded_faulty;
     ret = 0;
   } else {
+    current_raid = type;
     ret = raid_inits[type]();
     store_raid();
   }
+
+  releasesleep(&internal_struct_lock);
 
   return ret;
 }
@@ -142,33 +144,60 @@ sys_write_raid(void){
 
 uint64
 sys_disk_fail_raid(void){
-  if (current_raid < 0) {
-    // raid uninitialised
-    return -1;
-  }
-  int diskn;
+  uint8 mask;
+  int diskn, status;
   argint(0, &diskn);
-
+  
+  mask = (1<<diskn);
+  if (current_raid < 0)
+    return -1; // raid uninitialised
   if (diskn < RAID_DISKS_START || diskn > RAID_DISKS_END)
-    return -2;
+    return -2; // invalid disk number
+  if (faultyDisks & mask)
+    return -3; // disk already faulty
 
-  return raid_fails[current_raid](diskn);
+  acquiresleep(&internal_struct_lock);
+  // empty functions; status always zero
+  status = raid_fails[current_raid](diskn);
+  
+  faultyDisks |= mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
+  releasesleep(&internal_struct_lock);
+
+  return -status;
 }
 
 uint64
 sys_disk_repaired_raid(void){
-  if (current_raid < 0) {
-    // raid uninitialised
-    return -1;
-  }
-
-  int diskn;
+  
+  uint8 mask;
+  int diskn, status;
   argint(0, &diskn);
 
+  mask = (1<<diskn);
+  if (current_raid < 0)
+    return -1; // raid uninitialised
   if (diskn < RAID_DISKS_START || diskn > RAID_DISKS_END)
-    return -2;
+    return -2; // invalid disk number
+  if (!(faultyDisks & mask))
+    return -3; // disk not faulty
+  
 
-  return raid_repairs[current_raid](diskn);
+  acquiresleep(&internal_struct_lock);
+  // status only tells if data recovery succeded
+  status = raid_repairs[current_raid](diskn);
+  
+  faultyDisks &= ~mask;
+  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
+    raidHeaders[ix].faulty = faultyDisks;
+  }
+  store_raid();
+  releasesleep(&internal_struct_lock);
+
+  return -status;
 }
 
 uint64
@@ -198,12 +227,15 @@ sys_destroy_raid(void){
   if (current_raid < 0)
     return -1;
 
+  acquiresleep(&internal_struct_lock);
   for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
     raidHeaders[ix].magic = 0x0;
   }
   store_raid();
   current_raid = -1;
   faultyDisks = 0;
+  releasesleep(&internal_struct_lock);
+  
   return 0;
 }
 
@@ -211,6 +243,8 @@ uint64
 sys_load_raid(void){
   int loaded_raid;
   uint8 loaded_faulty;
+
+  initsleeplock(&internal_struct_lock, "internal_struct_lock");
   
   if (load_raid(&loaded_raid, &loaded_faulty) == 0) {
     current_raid = loaded_raid;

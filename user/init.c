@@ -11,6 +11,8 @@
 
 char *argv[] = { "sh", 0 };
 
+extern uint64 load_raid(void);
+
 int
 main(void)
 {
@@ -22,6 +24,8 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
+
+  load_raid();
 
   for(;;){
     printf("init: starting sh\n");

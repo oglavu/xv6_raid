@@ -105,40 +105,18 @@ raid_write_01(int blkn, uchar* data) {
 
 uint64
 raid_fail_01(int diskn) {
-  uint8 mask = 1 << diskn;
-  // disk already faulty
-  if (faultyDisks & mask)
-    return -0x10;
-
-  faultyDisks |= mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
-  
   return 0;
 }
 
 uint64
 raid_repair_01(int diskn) {
-  
-  // disk not faulty
-  uint8 mask = 1 << diskn;
-  if (!(faultyDisks & mask))
-    return -0x10;
-  
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
 
-  int pair = diskn + MIRROR_START;
+  int pair = (diskn - RAID_DISKS_START + MIRROR_START) % RAID_DISKS + RAID_DISKS_START;
 
   // pair is faulty as well
   uint8 pair_mask = 1 << pair;
   if (faultyDisks & pair_mask)
-    return 0;
+    return -1;
 
   copy_disk(diskn, pair);
 

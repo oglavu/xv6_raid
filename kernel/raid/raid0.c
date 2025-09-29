@@ -71,37 +71,12 @@ raid_write_0(int blkn, uchar* data) {
 
 uint64
 raid_fail_0(int diskn) {
-
-  uint8 mask = 1 << diskn;
-
-  // disk already faulty
-  if (faultyDisks & mask)
-    return -0x10;
-
-  faultyDisks |= mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
-
   return 0;
 }
 
 uint64
 raid_repair_0(int diskn) {
-
-  // disk not faulty
-  uint8 mask = 1 << diskn;
-  if (!(faultyDisks & mask))
-    return -0x10;
-
-  faultyDisks &= ~mask;
-  for (uint8 ix=RAID_DISKS_START; ix <= RAID_DISKS_END; ix++) {
-    raidHeaders[ix].faulty = faultyDisks;
-  }
-  store_raid();
-
-  return 0;
+  return -1;
 }
 
 uint64
